@@ -1,0 +1,31 @@
+{
+  "timestamp": "2025-09-12T16:15:30.219727",
+  "base_path": "C:\\Projects\\Doctor\\doctor-project",
+  "directories_created": 36,
+  "files_created": 23,
+  "total_size": 6973,
+  "directories": [
+    "backend\\app\\api\\endpoints",
+    "backend\\app\\api\\websocket",
+    "backend\\app\\core",
+    "backend\\app\\services",
+    "backend\\app\\converters\\processors",
+    "backend\\app\\models",
+    "backend\\app\\storage",
+    "backend\\app\\utils",
+    "backend\\tests\\unit",
+    "backend\\tests\\integration"
+  ],
+  "files": [
+    "backend\\app\\__init__.py",
+    "backend\\app\\api\\__init__.py",
+    "backend\\app\\api\\endpoints\\__init__.py",
+    "backend\\app\\api\\websocket\\__init__.py",
+    "backend\\app\\core\\__init__.py",
+    "backend\\app\\services\\__init__.py",
+    "backend\\app\\converters\\__init__.py",
+    "backend\\app\\converters\\processors\\__init__.py",
+    "backend\\app\\models\\__init__.py",
+    "backend\\app\\storage\\__init__.py"
+  ]
+}

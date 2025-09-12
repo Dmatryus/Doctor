@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./var/doctor:/var/doctor
+      - ./backend:/app
+    environment:
+      - APP_ENV=development
+    networks:
+      - doctor-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus
+    networks:
+      - doctor-network
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/grafana:/var/lib/grafana
+    networks:
+      - doctor-network
+
+networks:
+  doctor-network:
+    driver: bridge
