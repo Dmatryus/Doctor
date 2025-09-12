@@ -87,7 +87,7 @@ graph LR
     end
     
     subgraph "Конвертация в HTML"
-        toHTML[to_html()]
+        toHTML["to_html()"]
     end
     
     subgraph "HTML Processing"
@@ -120,76 +120,6 @@ graph LR
     fromHTML --> HTML2
     
     style HTML fill:#f9f,stroke:#333,stroke-width:4px
-```
-
-### 2.3. Схема классов
-
-```mermaid
-classDiagram
-    class BaseConverter {
-        <<abstract>>
-        +to_html(bytes) str
-        +from_html(str) bytes
-        +validate(bytes) bool
-    }
-    
-    class MarkdownConverter {
-        +to_html(bytes) str
-        +from_html(str) bytes
-        +process_mermaid(str) str
-        +render_latex(str) str
-    }
-    
-    class PDFConverter {
-        +to_html(bytes) str
-        +from_html(str) bytes
-        +extract_images(bytes) list
-        +apply_settings(str, dict) bytes
-    }
-    
-    class HTMLProcessor {
-        +normalize(str) str
-        +apply_theme(str, str) str
-        +process_images(str) str
-        +process_latex(str) str
-    }
-    
-    class UniversalConverter {
-        -converters: dict
-        -processor: HTMLProcessor
-        -cache: HTMLCache
-        +convert(source: str, target: str, data: bytes) bytes
-    }
-    
-    class HTMLCache {
-        -cache_dir: Path
-        -max_size: int
-        +get(hash: str) str
-        +set(hash: str, html: str)
-    }
-    
-    class TaskStorage {
-        -tasks: dict
-        -max_size: int
-        +add_task(Task)
-        +get_task(str) Task
-        +cleanup_old()
-    }
-    
-    class ConversionService {
-        -converter: UniversalConverter
-        -storage: TaskStorage
-        +create_task(file_id: str) Task
-        +execute(task: Task) str
-    }
-    
-    BaseConverter <|-- MarkdownConverter
-    BaseConverter <|-- PDFConverter
-    UniversalConverter --> BaseConverter
-    UniversalConverter --> HTMLProcessor
-    UniversalConverter --> HTMLCache
-    ConversionService --> UniversalConverter
-    ConversionService --> TaskStorage
 ```
 
 ## 3. Структура проекта
