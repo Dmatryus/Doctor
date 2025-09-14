@@ -1,257 +1,260 @@
 """
-Enumerations and constants for Doctor service
+Custom exceptions for Doctor service
 """
 
-from enum import Enum
-from typing import Set, Dict, List
+from typing import Any, Dict, Optional
+from uuid import UUID
+
+from ..models.enums import ErrorCode
 
 
-class DocumentFormat(str, Enum):
-    """Supported document formats"""
-    MARKDOWN = "markdown"
-    MD = "md"
-    PDF = "pdf"
-    HTML = "html"
-    HTM = "htm"
+class DoctorException(Exception):
+    """Base exception for all Doctor service errors"""
     
-    @classmethod
-    def normalize(cls, format_str: str) -> 'DocumentFormat':
-        """Normalize format string to enum value"""
-        format_map = {
-            "markdown": cls.MARKDOWN,
-            "md": cls.MARKDOWN,
-            "pdf": cls.PDF,
-            "html": cls.HTML,
-            "htm": cls.HTML,
+    def __init__(
+        self,
+        message: str,
+        error_code: Optional[ErrorCode] = None,
+        details: Optional[Dict[str, Any]] = None,
+        status_code: int = 500
+    ):
+        super().__init__(message)
+        self.message = message
+        self.error_code = error_code or ErrorCode.INTERNAL_ERROR
+        self.details = details or {}
+        self.status_code = status_code
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert exception to dictionary"""
+        return {
+            "error_code": self.error_code.value,
+            "message": self.message,
+            "details": self.details,
+            "status_code": self.status_code
         }
-        return format_map.get(format_str.lower(), cls.MARKDOWN)
-    
-    @classmethod
-    def get_extensions(cls) -> Set[str]:
-        """Get all supported file extensions"""
-        return {".md", ".markdown", ".pdf", ".html", ".htm"}
-    
-    @classmethod
-    def from_extension(cls, extension: str) -> 'DocumentFormat':
-        """Get format from file extension"""
-        ext_map = {
-            ".md": cls.MARKDOWN,
-            ".markdown": cls.MARKDOWN,
-            ".pdf": cls.PDF,
-            ".html": cls.HTML,
-            ".htm": cls.HTML,
-        }
-        return ext_map.get(extension.lower(), cls.MARKDOWN)
-    
-    def to_mime_type(self) -> str:
-        """Get MIME type for format"""
-        mime_map = {
-            self.MARKDOWN: "text/markdown",
-            self.MD: "text/markdown",
-            self.PDF: "application/pdf",
-            self.HTML: "text/html",
-            self.HTM: "text/html",
-        }
-        return mime_map.get(self, "application/octet-stream")
 
 
-class TaskStatus(str, Enum):
-    """Task execution status"""
-    CREATED = "created"
-    QUEUED = "queued"
-    WAITING = "waiting"
-    PROCESSING = "processing"
-    SUCCESS = "success"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-    EXPIRED = "expired"
+class ValidationError(DoctorException):
+    """Validation errors"""
     
-    @property
-    def is_final(self) -> bool:
-        """Check if status is final (no more changes expected)"""
-        return self in {self.SUCCESS, self.FAILED, self.CANCELLED, self.EXPIRED}
-    
-    @property
-    def is_active(self) -> bool:
-        """Check if task is actively being processed"""
-        return self == self.PROCESSING
-    
-    @property
-    def can_cancel(self) -> bool:
-        """Check if task can be cancelled"""
-        return self in {self.CREATED, self.QUEUED, self.WAITING, self.PROCESSING}
+    def __init__(self, message: str, field: Optional[str] = None, **kwargs):
+        details = {"field": field} if field else {}
+        details.update(kwargs)
+        super().__init__(
+            message=message,
+            error_code=ErrorCode.INVALID_FILE_FORMAT,
+            details=details,
+            status_code=400
+        )
 
 
-class ConversionTheme(str, Enum):
-    """Available conversion themes"""
-    DEFAULT = "default"
-    GITHUB = "github"
-    MATERIAL = "material"
-    DARK = "dark"
-    LIGHT = "light"
-    ACADEMIC = "academic"
-    
-    def get_css_url(self) -> str:
-        """Get CSS URL for theme"""
-        base_url = "/static/themes"
-        return f"{base_url}/{self.value}.css"
+class FileError(DoctorException):
+    """File-related errors"""
+    pass
 
 
-class CodeStyle(str, Enum):
-    """Code syntax highlighting styles"""
-    DEFAULT = "default"
-    MONOKAI = "monokai"
-    GITHUB = "github"
-    DRACULA = "dracula"
-    SOLARIZED_LIGHT = "solarized-light"
-    SOLARIZED_DARK = "solarized-dark"
-    VS_CODE = "vs-code"
-    ATOM_ONE = "atom-one"
+class FileNotFoundError(FileError):
+    """File not found error"""
     
-    def get_highlight_class(self) -> str:
-        """Get CSS class for highlighting"""
-        return f"highlight-{self.value}"
-
-
-class UploadSource(str, Enum):
-    """Source of uploaded content"""
-    FILE = "file"
-    TEXT = "text"
-    URL = "url"
-    API = "api"
-
-
-class Priority(int, Enum):
-    """Task priority levels"""
-    LOW = 0
-    NORMAL = 1
-    HIGH = 2
-    URGENT = 3
-    
-    @property
-    def queue_weight(self) -> int:
-        """Get queue weight for priority scheduling"""
-        weights = {
-            self.LOW: 1,
-            self.NORMAL: 5,
-            self.HIGH: 10,
-            self.URGENT: 100,
-        }
-        return weights.get(self, 1)
-
-
-class ErrorCode(str, Enum):
-    """Error codes for API responses"""
-    # File errors
-    FILE_TOO_LARGE = "file_too_large"
-    FILE_NOT_FOUND = "file_not_found"
-    INVALID_FILE_FORMAT = "invalid_file_format"
-    FILE_CORRUPTED = "file_corrupted"
-    
-    # Task errors
-    TASK_NOT_FOUND = "task_not_found"
-    TASK_EXPIRED = "task_expired"
-    TASK_LIMIT_EXCEEDED = "task_limit_exceeded"
-    TASK_TIMEOUT = "task_timeout"
-    
-    # Conversion errors
-    CONVERSION_FAILED = "conversion_failed"
-    UNSUPPORTED_CONVERSION = "unsupported_conversion"
-    INVALID_OPTIONS = "invalid_options"
-    
-    # System errors
-    STORAGE_ERROR = "storage_error"
-    MEMORY_LIMIT = "memory_limit"
-    INTERNAL_ERROR = "internal_error"
-    SERVICE_UNAVAILABLE = "service_unavailable"
-    
-    def to_http_status(self) -> int:
-        """Get HTTP status code for error"""
-        status_map = {
-            self.FILE_TOO_LARGE: 413,
-            self.FILE_NOT_FOUND: 404,
-            self.INVALID_FILE_FORMAT: 400,
-            self.FILE_CORRUPTED: 422,
-            self.TASK_NOT_FOUND: 404,
-            self.TASK_EXPIRED: 410,
-            self.TASK_LIMIT_EXCEEDED: 429,
-            self.TASK_TIMEOUT: 408,
-            self.CONVERSION_FAILED: 500,
-            self.UNSUPPORTED_CONVERSION: 400,
-            self.INVALID_OPTIONS: 400,
-            self.STORAGE_ERROR: 507,
-            self.MEMORY_LIMIT: 507,
-            self.INTERNAL_ERROR: 500,
-            self.SERVICE_UNAVAILABLE: 503,
-        }
-        return status_map.get(self, 500)
-
-
-class WebSocketEvent(str, Enum):
-    """WebSocket event types"""
-    CONNECTED = "connected"
-    STATUS_UPDATE = "status_update"
-    PROGRESS_UPDATE = "progress_update"
-    TASK_COMPLETED = "task_completed"
-    TASK_FAILED = "task_failed"
-    ERROR = "error"
-    DISCONNECTED = "disconnected"
-
-
-# Constants
-class Constants:
-    """System-wide constants"""
-    
-    # File size limits (in bytes)
-    MAX_FILE_SIZE = 524288000  # 500 MB
-    MAX_TEXT_SIZE = 10485760   # 10 MB
-    MAX_URL_SIZE = 104857600   # 100 MB
-    
-    # Task limits
-    MAX_CONCURRENT_TASKS = 10
-    MAX_TASKS_IN_MEMORY = 100
-    MAX_TASKS_PER_USER = 5  # For future user-based limiting
-    
-    # Timeouts (in seconds)
-    TASK_TIMEOUT = 300  # 5 minutes
-    UPLOAD_TIMEOUT = 60  # 1 minute
-    CONVERSION_TIMEOUT = 240  # 4 minutes
-    CLEANUP_INTERVAL = 3600  # 1 hour
-    
-    # Cache settings
-    CACHE_SIZE = 50  # Number of cached HTML files
-    CACHE_TTL = 86400  # 24 hours
-    
-    # Preview settings
-    PREVIEW_MAX_SIZE = 1048576  # 1 MB
-    PREVIEW_IMAGE_WIDTH = 1200
-    PREVIEW_IMAGE_HEIGHT = 1600
-    
-    # WebSocket settings
-    WS_HEARTBEAT_INTERVAL = 30  # seconds
-    WS_MAX_CONNECTIONS = 100
-    
-    # File paths (relative to project root)
-    UPLOAD_DIR = "var/doctor/uploads"
-    TEMP_DIR = "var/doctor/temp"
-    CACHE_DIR = "var/doctor/cache"
-    FILES_DIR = "var/doctor/files"
-    PREVIEW_DIR = "var/doctor/preview"
-    
-    # Conversion matrix - what can be converted to what
-    CONVERSION_MATRIX: Dict[DocumentFormat, List[DocumentFormat]] = {
-        DocumentFormat.MARKDOWN: [DocumentFormat.PDF, DocumentFormat.HTML],
-        DocumentFormat.PDF: [DocumentFormat.MARKDOWN, DocumentFormat.HTML],
-        DocumentFormat.HTML: [DocumentFormat.MARKDOWN, DocumentFormat.PDF],
-    }
-    
-    @classmethod
-    def can_convert(cls, source: DocumentFormat, target: DocumentFormat) -> bool:
-        """Check if conversion is supported"""
-        source_norm = DocumentFormat.normalize(source.value)
-        target_norm = DocumentFormat.normalize(target.value)
+    def __init__(self, file_id: Optional[UUID] = None, filename: Optional[str] = None):
+        if file_id:
+            message = f"File with ID {file_id} not found"
+            details = {"file_id": str(file_id)}
+        elif filename:
+            message = f"File '{filename}' not found"
+            details = {"filename": filename}
+        else:
+            message = "File not found"
+            details = {}
         
-        if source_norm == target_norm:
-            return False
-            
-        return target_norm in cls.CONVERSION_MATRIX.get(source_norm, [])
+        super().__init__(
+            message=message,
+            error_code=ErrorCode.FILE_NOT_FOUND,
+            details=details,
+            status_code=404
+        )
+
+
+class FileTooLargeError(FileError):
+    """File too large error"""
+    
+    def __init__(self, size: int, max_size: int):
+        super().__init__(
+            message=f"File size {size} bytes exceeds maximum of {max_size} bytes",
+            error_code=ErrorCode.FILE_TOO_LARGE,
+            details={"size": size, "max_size": max_size},
+            status_code=413
+        )
+
+
+class FileCorruptedError(FileError):
+    """File corrupted error"""
+    
+    def __init__(self, filename: str, reason: str):
+        super().__init__(
+            message=f"File '{filename}' is corrupted: {reason}",
+            error_code=ErrorCode.FILE_CORRUPTED,
+            details={"filename": filename, "reason": reason},
+            status_code=422
+        )
+
+
+class TaskError(DoctorException):
+    """Task-related errors"""
+    pass
+
+
+class TaskNotFoundError(TaskError):
+    """Task not found error"""
+    
+    def __init__(self, task_id: UUID):
+        super().__init__(
+            message=f"Task with ID {task_id} not found",
+            error_code=ErrorCode.TASK_NOT_FOUND,
+            details={"task_id": str(task_id)},
+            status_code=404
+        )
+
+
+class TaskExpiredError(TaskError):
+    """Task expired error"""
+    
+    def __init__(self, task_id: UUID):
+        super().__init__(
+            message=f"Task with ID {task_id} has expired",
+            error_code=ErrorCode.TASK_EXPIRED,
+            details={"task_id": str(task_id)},
+            status_code=410
+        )
+
+
+class TaskLimitExceededError(TaskError):
+    """Task limit exceeded error"""
+    
+    def __init__(self, current_count: int, max_count: int):
+        super().__init__(
+            message=f"Task limit exceeded: {current_count}/{max_count} tasks active",
+            error_code=ErrorCode.TASK_LIMIT_EXCEEDED,
+            details={"current_count": current_count, "max_count": max_count},
+            status_code=429
+        )
+
+
+class TaskTimeoutError(TaskError):
+    """Task timeout error"""
+    
+    def __init__(self, task_id: UUID, timeout: int):
+        super().__init__(
+            message=f"Task {task_id} timed out after {timeout} seconds",
+            error_code=ErrorCode.TASK_TIMEOUT,
+            details={"task_id": str(task_id), "timeout": timeout},
+            status_code=408
+        )
+
+
+class ConversionError(DoctorException):
+    """Conversion-related errors"""
+    pass
+
+
+class ConversionFailedError(ConversionError):
+    """Conversion failed error"""
+    
+    def __init__(self, source_format: str, target_format: str, reason: str):
+        super().__init__(
+            message=f"Conversion from {source_format} to {target_format} failed: {reason}",
+            error_code=ErrorCode.CONVERSION_FAILED,
+            details={
+                "source_format": source_format,
+                "target_format": target_format,
+                "reason": reason
+            },
+            status_code=500
+        )
+
+
+class UnsupportedConversionError(ConversionError):
+    """Unsupported conversion error"""
+    
+    def __init__(self, source_format: str, target_format: str):
+        super().__init__(
+            message=f"Conversion from {source_format} to {target_format} is not supported",
+            error_code=ErrorCode.UNSUPPORTED_CONVERSION,
+            details={"source_format": source_format, "target_format": target_format},
+            status_code=400
+        )
+
+
+class InvalidOptionsError(ConversionError):
+    """Invalid conversion options error"""
+    
+    def __init__(self, message: str, option_name: Optional[str] = None):
+        details = {"option_name": option_name} if option_name else {}
+        super().__init__(
+            message=f"Invalid conversion options: {message}",
+            error_code=ErrorCode.INVALID_OPTIONS,
+            details=details,
+            status_code=400
+        )
+
+
+class StorageError(DoctorException):
+    """Storage-related errors"""
+    
+    def __init__(self, message: str, operation: str):
+        super().__init__(
+            message=f"Storage error during {operation}: {message}",
+            error_code=ErrorCode.STORAGE_ERROR,
+            details={"operation": operation},
+            status_code=507
+        )
+
+
+class MemoryLimitError(DoctorException):
+    """Memory limit exceeded error"""
+    
+    def __init__(self, current_usage: int, max_usage: int):
+        super().__init__(
+            message=f"Memory limit exceeded: {current_usage} > {max_usage} bytes",
+            error_code=ErrorCode.MEMORY_LIMIT,
+            details={"current_usage": current_usage, "max_usage": max_usage},
+            status_code=507
+        )
+
+
+class ServiceUnavailableError(DoctorException):
+    """Service unavailable error"""
+    
+    def __init__(self, reason: str):
+        super().__init__(
+            message=f"Service unavailable: {reason}",
+            error_code=ErrorCode.SERVICE_UNAVAILABLE,
+            details={"reason": reason},
+            status_code=503
+        )
+
+
+# Convenience functions for creating common exceptions
+def file_not_found(file_id: Optional[UUID] = None, filename: Optional[str] = None) -> FileNotFoundError:
+    """Create a file not found exception"""
+    return FileNotFoundError(file_id=file_id, filename=filename)
+
+
+def file_too_large(size: int, max_size: int) -> FileTooLargeError:
+    """Create a file too large exception"""
+    return FileTooLargeError(size=size, max_size=max_size)
+
+
+def task_not_found(task_id: UUID) -> TaskNotFoundError:
+    """Create a task not found exception"""
+    return TaskNotFoundError(task_id=task_id)
+
+
+def conversion_failed(source_format: str, target_format: str, reason: str) -> ConversionFailedError:
+    """Create a conversion failed exception"""
+    return ConversionFailedError(source_format=source_format, target_format=target_format, reason=reason)
+
+
+def unsupported_conversion(source_format: str, target_format: str) -> UnsupportedConversionError:
+    """Create an unsupported conversion exception"""
+    return UnsupportedConversionError(source_format=source_format, target_format=target_format)
